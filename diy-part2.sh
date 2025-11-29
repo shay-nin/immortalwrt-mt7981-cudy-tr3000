@@ -1,39 +1,28 @@
 #!/bin/bash
+set -e
+
 #
-# https://github.com/P3TERX/Actions-OpenWrt
-# File name: diy-part2.sh
-# Description: OpenWrt DIY script part 2 (After Update feeds)
-#
-# Copyright (c) 2019-2024 P3TERX <https://p3terx.com>
-#
-# This is free software, licensed under the MIT License.
-# See /LICENSE for more information.
+# diy-part2.sh — OpenWrt / ImmortalWrt 自定义脚本 (After feeds/config, before build)
 #
 
-# Modify default IP
-#sed -i 's/192.168.1.1/192.168.50.5/g' package/base-files/files/bin/config_generate
+# ———— 设备 / DTS 修改 — 以 Cudy TR3000 为例 ————
+# 启用 USB 电源 (如果需要的话)
+sed -i '/modem-power/,/};/{ s/gpio-export,output = <1>;/gpio-export,output = <0>;/ }' target/linux/mediatek/dts/mt7981b-cudy-tr3000-v1.dtsi || true
 
-# Modify default theme
-#sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' feeds/luci/collections/luci/Makefile
-
-# Modify hostname
-#sed -i 's/OpenWrt/P3TERX-Router/g' package/base-files/files/bin/config_generate
-
-# Enable USB power for Cudy TR3000 by default
-sed -i '/modem-power/,/};/{s/gpio-export,output = <1>;/gpio-export,output = <0>;/}' target/linux/mediatek/dts/mt7981b-cudy-tr3000-v1.dtsi
-
-# add date in output file name
+# ———— 在固件文件名中加入构建日期 (便于区分版本) ————
 sed -i -e '/^IMG_PREFIX:=/i BUILD_DATE := $(shell date +%Y%m%d)' \
-       -e '/^IMG_PREFIX:=/ s/\($(SUBTARGET)\)/\1-$(BUILD_DATE)/' include/image.mk
+       -e '/^IMG_PREFIX:=/ s/\($(SUBTARGET)\)/\1-$(BUILD_DATE)/' include/image.mk || true
 
-# set ubi to 122M
-# sed -i 's/reg = <0x5c0000 0x7000000>;/reg = <0x5c0000 0x7a40000>;/' target/linux/mediatek/dts/mt7981b-cudy-tr3000-v1-ubootmod.dts
+# ———— (可选) 调整 UBI 分区大小 — 根据 flash 大小决定是否启用 ————
+# 如果你使用 256 MB flash，并希望扩大 rootfs／overlay，可取消下面这行的注释
+# sed -i 's/reg = <0x5c0000 0x7000000>;/reg = <0x5c0000 0x7a40000>;/' target/linux/mediatek/dts/mt7981b-cudy-tr3000-v1-ubootmod.dts || true
 
-# Add OpenClash Meta
-mkdir -p files/etc/openclash/core
+# ———— (可选) 默认配置修改 —— IP / hostname / theme 等 —— 根据需要取消下面注释 —— 
+# sed -i 's/192.168.1.1/192.168.50.5/g' package/base-files/files/bin/config_generate
+# sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' feeds/luci/collections/luci/Makefile
+# sed -i 's/OpenWrt/MyRouter/g' package/base-files/files/bin/config_generate
 
-wget -qO "clash_meta.tar.gz" "https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-arm64.tar.gz"
-tar -zxvf "clash_meta.tar.gz" -C files/etc/openclash/core/
-mv files/etc/openclash/core/clash files/etc/openclash/core/clash_meta
-chmod +x files/etc/openclash/core/clash_meta
-rm -f "clash_meta.tar.gz"
+# ———— (可选) 自定义 package / theme / plugin —— 如有需要可在这里 clone —— 
+# git clone https://github.com/... package/...
+
+echo "diy-part2.sh — custom adjustments applied (without OpenClash parts)"
