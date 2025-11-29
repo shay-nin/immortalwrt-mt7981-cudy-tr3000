@@ -12,6 +12,12 @@ sed -i '/modem-power/,/};/{ s/gpio-export,output = <1>;/gpio-export,output = <0>
 # ———— 在固件文件名中加入构建日期 (便于区分版本) ————
 sed -i -e '/^IMG_PREFIX:=/i BUILD_DATE := $(shell date +%Y%m%d)' \
        -e '/^IMG_PREFIX:=/ s/\($(SUBTARGET)\)/\1-$(BUILD_DATE)/' include/image.mk || true
+       
+sed -i 's/192.168.1.1/192.168.2.1/g' package/base-files/files/bin/config_generate
+
+# 2. 修改默认主题为 Aurora (如果你刚才下载了它)
+# 注意：这就需要你确保 diy-part1.sh 已经正确下载了 luci-theme-aurora
+sed -i 's/luci-theme-bootstrap/luci-theme-aurora/g' feeds/luci/collections/luci/Makefile
 
 # ———— (可选) 调整 UBI 分区大小 — 根据 flash 大小决定是否启用 ————
 # 如果你使用 256 MB flash，并希望扩大 rootfs／overlay，可取消下面这行的注释
