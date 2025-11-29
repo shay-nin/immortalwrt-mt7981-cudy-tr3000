@@ -1,0 +1,79 @@
+name: Build ImmortalWrt / OpenWrt for Cudy TR3000
+
+on:
+  workflow_dispatch:
+    # 手动触发
+    inputs:
+      clean:
+        description: '是否 clean build (清理 + 全新编译)'
+        required: false
+        default: 'false'
+
+env:
+  CCACHE_DIR: /workdir/.ccache
+  CCACHE_MAXSIZE: 6G
+  # ↓ 替换为你实际 fork 的仓库 URL & 分支
+  REPO_URL: https://github.com/weekdaycare/immortalwrt-mt7981-cudy-tr3000.git  
+  REPO_BRANCH: main  
+  FEEDS_CONF: feeds.conf.default
+  # 使用 fragment + diy-part1.sh 合并 .config，所以这里设为 .config
+  CONFIG_FILE: .config
+  DIY_P1_SH: diy-part1.sh
+  DIY_P2_SH: diy-part2.sh
+  UPLOAD_BIN_DIR: false
+  UPLOAD_FIRMWARE: true
+  UPLOAD_RELEASE: true
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y \
+            build-essential subversion libncurses5-dev libncursesw5-dev \
+            gawk git gettext libssl-dev xsltproc zlib1g-dev unzip file \
+            libelf-dev autoconf automake patch flex bison python3 python3-pip \
+            squashfs-tools
+
+      - name: Custom part 1 — feeds & config fragment
+        run: |
+          chmod +x ${{ env.DIY_P1_SH }}
+          bash ${{ env.DIY_P1_SH }}
+
+      - name: Update feeds
+        run: |
+          cd openwrt || true
+          ./scripts/feeds update -a
+
+      - name: Install feeds
+        run: |
+          cd openwrt || true
+          ./scripts/feeds install -a
+
+      - name: Build firmware
+        run: |
+          cd openwrt || true
+          make -j$(nproc)
+
+      - name: Upload firmware artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ github.run_id }}
+          path: openwrt/bin/targets/*/*
+
+      - name: (Optional) Create GitHub release
+        if: success() && env.UPLOAD_RELEASE == 'true'
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "release-${{ github.run_id }}"
+          files: openwrt/bin/targets/*/*sysupgrade.bin
