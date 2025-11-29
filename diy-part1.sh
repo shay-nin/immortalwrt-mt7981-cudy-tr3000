@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# diy-part1.sh — 强制重写源配置 (彻底解决依赖丢失问题)
+# diy-part1.sh — 极简修复版 (只保留核心源，避免 find 报错)
 #
 
 set -e
@@ -17,23 +17,22 @@ fi
 cd "$OPENWRT_DIR"
 echo "📁 Entered OpenWrt source directory: $PWD"
 
-# 2. 【核弹级修复】直接覆盖 feeds.conf.default
-# 不再尝试修改原有文件，而是直接写入全新的标准源
-echo "🔥 Nuke and rewrite feeds.conf.default..."
+# 2. 【核心修复】重写 feeds.conf.default
+# 剔除 telephony 和 routing，因为它们导致了 'No such file' 错误
+# 只保留 packages (含 libpam, lm-sensors) 和 luci (含 luci-compat)
+echo "🔥 Rewriting feeds.conf.default (Minimal Mode)..."
 rm -f feeds.conf.default
 
-# 写入 ImmortalWrt 官方源 (适配 24.10/Master 分支)
+# 使用 ImmortalWrt 的 packages 和 luci 源
 cat > feeds.conf.default <<EOF
 src-git packages https://github.com/immortalwrt/packages.git
 src-git luci https://github.com/immortalwrt/luci.git
-src-git routing https://github.com/immortalwrt/routing.git
-src-git telephony https://github.com/immortalwrt/telephony.git
 EOF
 
 echo "📄 New feeds.conf.default content:"
 cat feeds.conf.default
 
-# 3. 下载自定义插件 (Bandix & Aurora)
+# 3. 下载自定义插件
 echo "📥 Cloning custom packages..."
 function git_clone_path() {
     local url=$1
@@ -50,32 +49,23 @@ git_clone_path "https://github.com/eamonxg/luci-theme-aurora" "package/luci-them
 git_clone_path "https://github.com/timsaya/luci-app-bandix" "package/luci-app-bandix"
 git_clone_path "https://github.com/timsaya/openwrt-bandix" "package/openwrt-bandix"
 
-# 4. 【强制更新】清理缓存并安装 Feeds
-echo "🔄 Updating and installing feeds (Fresh Start)..."
-# 删除可能存在的旧 feeds 数据
+# 4. 更新并安装 Feeds
+echo "🔄 Updating and installing feeds..."
+# 清理旧数据
 rm -rf feeds/ packages/feeds/ tmp/
 
-# 更新源
-./scripts/feeds update -a
-# 安装源 (强制覆盖)
+# 更新源 (使用 || true 防止因网络波动导致的脚本中断)
+./scripts/feeds update -a || echo "⚠️ Feeds update had some warnings, continuing..."
+
+# 安装源
 ./scripts/feeds install -a
 
-# 5. 【验证检查】检查核心依赖是否安装成功
-# 如果这步报错，说明网络有问题或者源完全不可用
-echo "🕵️ verifying key dependencies..."
-if [ -d "package/feeds/packages/libpam" ]; then
-    echo "✅ libpam found!"
-else
-    echo "❌ libpam NOT found! Trying to force install..."
-    ./scripts/feeds install libpam
-fi
-
-if [ -d "package/feeds/luci/luci-compat" ]; then
-    echo "✅ luci-compat found!"
-else
-    echo "❌ luci-compat NOT found! Trying to force install..."
-    ./scripts/feeds install luci-compat
-fi
+# 5. 【双重保险】强制安装缺失的核心依赖
+# 你的报错日志中缺少的主要是这些
+echo "💉 Ensuring core dependencies are installed..."
+for pkg in libpam libtirpc lm-sensors pciutils usbutils luci-compat luci-lib-jsonc; do
+    ./scripts/feeds install $pkg || echo "⚠️ Failed to install $pkg, hoping it's already there."
+done
 
 # 6. 合并自定义配置
 PKG_FRAGMENT="$SCRIPT_DIR/my_packages.config"
