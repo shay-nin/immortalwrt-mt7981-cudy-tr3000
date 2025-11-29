@@ -20,3 +20,9 @@
 git clone https://github.com/eamonxg/luci-theme-aurora package/luci-theme-aurora
 git clone https://github.com/timsaya/luci-app-bandix package/luci-app-bandix
 git clone https://github.com/timsaya/openwrt-bandix package/openwrt-bandix
+
+# 添加 luci-app-argon-config 源码
+git clone https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config
+
+# 注意：kmod-rkp-ipid 及其相关依赖通常包含在 ImmortalWrt 源码中。
+# 如果编译报错找不到它，你可能需要在这里添加 ua2f 的源，但目前先不添加，直接尝试使用默认源。
