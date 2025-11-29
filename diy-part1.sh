@@ -17,8 +17,8 @@ fi
 cd "$OPENWRT_DIR"
 echo "📁 Entered OpenWrt source directory: $PWD"
 
-# 2. 关键修复：确保 feeds.conf.default 中的核心源没有被注释掉
-# 这一步会把 helloworld, packages, luci 等被注释的源全部解除注释
+# 2. 【关键修复】确保 feeds.conf.default 中的核心源没有被注释掉
+# 这一步会把 helloworld, packages, luci 等被注释的源全部解除注释，解决 libpam, lm-sensors 等缺失问题
 if [ -f "feeds.conf.default" ]; then
     echo "🔓 Uncommenting all feeds in feeds.conf.default..."
     sed -i 's/^#\(.*helloworld\)/\1/' feeds.conf.default
@@ -28,39 +28,42 @@ if [ -f "feeds.conf.default" ]; then
     sed -i 's/^#\(.*telephony\)/\1/' feeds.conf.default
 fi
 
-# 3. 先下载自定义插件 (Cloning custom packages)
-# 建议放在 feeds install 之前，以便处理依赖覆盖
+# 3. 【调整顺序】先下载自定义插件 (Cloning custom packages)
+# 必须放在 feeds install 之前，这样 feeds 脚本才能检测到这些新包的依赖关系
 echo "📥 Cloning custom packages / themes..."
-# 检查目录是否存在以避免重复 clone 报错
-[ -d "package/luci-theme-aurora" ] || git clone https://github.com/eamonxg/luci-theme-aurora package/luci-theme-aurora
-[ -d "package/luci-app-bandix" ] || git clone https://github.com/timsaya/luci-app-bandix package/luci-app-bandix
-[ -d "package/openwrt-bandix" ] || git clone https://github.com/timsaya/openwrt-bandix package/openwrt-bandix
 
-# 4. 更新并安装 Feeds (Updating and installing feeds)
-# 这一步必须在 clone 完自定义插件后执行，或者执行完后再补充执行一次
+# 使用判断语句防止重复 clone 导致脚本报错
+function git_clone_path() {
+    local url=$1
+    local dir=$2
+    if [ ! -d "$dir" ]; then
+        git clone "$url" "$dir"
+        echo "✅ Cloned $dir"
+    else
+        echo "⚠️ $dir already exists, skipping..."
+    fi
+}
+
+git_clone_path "https://github.com/eamonxg/luci-theme-aurora" "package/luci-theme-aurora"
+git_clone_path "https://github.com/timsaya/luci-app-bandix" "package/luci-app-bandix"
+git_clone_path "https://github.com/timsaya/openwrt-bandix" "package/openwrt-bandix"
+
+# 4. 【关键步骤】更新并安装 Feeds
+# 此时 package 目录下已经有了自定义包，install -a 会自动处理所有依赖
 echo "🔄 Updating and installing feeds..."
 ./scripts/feeds update -a
 ./scripts/feeds install -a
 
-# 5. 合并自定义配置 (Merging custom config)
+# 5. 合并自定义配置
 PKG_FRAGMENT="$SCRIPT_DIR/my_packages.config"
 if [ -f "$PKG_FRAGMENT" ]; then
     echo "📦 Merging custom package config fragment..."
     cat "$PKG_FRAGMENT" >> .config
 fi
 
-# 6. 生成配置 (Running defconfig)
+# 6. 【最后执行】生成配置 (Running defconfig)
+# 放在最后是为了确保所有新加的包和 feeds 都在 .config 中生效
 echo "⚙️ Running defconfig..."
-# 使用 make defconfig 自动补全依赖
-
-# 强制添加 luci-compat 以解决旧版插件报错 (Dependency on luci-lua-runtime)
-echo "🔧 Enabling luci-compat for legacy package support..."
-echo "CONFIG_PACKAGE_luci-compat=y" >> .config
-echo "CONFIG_PACKAGE_luci-lib-ipkg=y" >> .config
-
-# 做一次 defconfig
-echo "⚙️ Running defconfig..."
-yes "" | make defconfig
 make defconfig
 
 echo "✅ diy-part1.sh completed successfully!"
