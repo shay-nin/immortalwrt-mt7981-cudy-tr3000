@@ -1,36 +1,25 @@
 #!/bin/bash
-set -e
+# ---------------------------------------------------------
+# diy-part1.sh: 修复软件源并下载插件
+# ---------------------------------------------------------
 
-# 进入源码目录
-cd openwrt
+# 1. 【核心修复】重写 feeds.conf.default
+# 只保留核心的 packages, luci, routing。
+# 删除了 telephony，因为它会导致报错且你不需要它。
+echo 'src-git packages https://github.com/immortalwrt/packages.git' > feeds.conf.default
+echo 'src-git luci https://github.com/immortalwrt/luci.git' >> feeds.conf.default
+echo 'src-git routing https://github.com/immortalwrt/routing.git' >> feeds.conf.default
 
-# ============================
-# DIY PART 1 — Feeds & Packages
-# ============================
+# 2. 下载自定义插件源码
+# Argon 主题与配置
+git clone https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
+git clone https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config
 
-# 1️⃣ 更新官方 feeds
-cat >feeds.conf.default <<EOF
-src-git packages https://git.openwrt.org/feed/packages.git
-src-git luci https://git.openwrt.org/project/luci.git
-src-git routing https://git.openwrt.org/feed/routing.git
-src-git telephony https://git.openwrt.org/feed/telephony.git
-EOF
+# RKP-IPID 防检测模块 (必须配合 UA2F)
+git clone https://github.com/EOYOHOO/rkp-ipid.git package/rkp-ipid
+git clone https://github.com/Zxilly/UA2F.git package/UA2F
 
-# 更新并安装所有 feeds
-./scripts/feeds update -a
-./scripts/feeds install -a
-
-# 2️⃣ Clone Emortal / MTK / 必要第三方包到 package/
-echo "Cloning third-party packages..."
-
-[ ! -d package/emortal ] && git clone https://github.com/immortalwrt/packages-emortal.git package/emortal
-[ ! -d package/mtk-apps ] && git clone https://github.com/ImmortalWrt/immortalwrt-mtk-apps.git package/mtk-apps
-[ ! -d package/luci-extra ] && git clone https://github.com/openwrt/luci.git package/luci-extra
-
-# 3️⃣ 合并你的 config
-echo "Merging config files..."
-cp ../128m.config .config
-[ -f ../my_packages.config ] && cat ../my_packages.config >> .config
-make defconfig
-
-echo "DIY PART 1 finished."
+# 其他自定义包
+git clone https://github.com/eamonxg/luci-theme-aurora package/luci-theme-aurora
+git clone https://github.com/timsaya/luci-app-bandix package/luci-app-bandix
+git clone https://github.com/timsaya/openwrt-bandix package/openwrt-bandix
