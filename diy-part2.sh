@@ -17,9 +17,6 @@ sed -i -e '/^IMG_PREFIX:=/i BUILD_DATE := $(shell date +%Y%m%d)' \
 # 如果你使用 256 MB flash，并希望扩大 rootfs／overlay，可取消下面这行的注释
 # sed -i 's/reg = <0x5c0000 0x7000000>;/reg = <0x5c0000 0x7a40000>;/' target/linux/mediatek/dts/mt7981b-cudy-tr3000-v1-ubootmod.dts || true
 
-set ubi to 122M
-sed -i 's/reg = <0x5c0000 0x7000000>;/reg = <0x5c0000 0x7a40000>;/' target/linux/mediatek/dts/mt7981b-cudy-tr3000-v1-ubootmod.dts
-
 # ———— (可选) 默认配置修改 —— IP / hostname / theme 等 —— 根据需要取消下面注释 —— 
 # sed -i 's/192.168.1.1/192.168.50.5/g' package/base-files/files/bin/config_generate
 # sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' feeds/luci/collections/luci/Makefile
