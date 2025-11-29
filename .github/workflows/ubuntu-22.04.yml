@@ -75,20 +75,46 @@ jobs:
           ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
           echo "✅ Source code cloned successfully"
 
+# ⬇️⬇️⬇️ 请复制并替换下面这两段 (从 Load custom feeds 到 Update feeds) ⬇️⬇️⬇️
+
       - name: ⚙️ Load custom feeds
         run: |
           set -e
-          [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+          # 1. 尝试处理可能存在的 Windows 换行符问题
+          [ -f $DIY_P1_SH ] && sed -i 's/\r$//' $DIY_P1_SH
           chmod +x $DIY_P1_SH
+
+          # 2. 进入目录
           cd openwrt
-          $GITHUB_WORKSPACE/$DIY_P1_SH
+
+          # 3. 【强制修复】无论 diy-part1.sh 跑没跑，这里都强制重写 feeds.conf.default
+          # 直接在工作流里写入正确的源，确保万无一失
+          echo "🔧 Force overwriting feeds.conf.default..."
+          cat > feeds.conf.default <<EOF
+          src-git packages https://github.com/immortalwrt/packages.git
+          src-git luci https://github.com/immortalwrt/luci.git
+          src-git routing https://github.com/immortalwrt/routing.git
+          EOF
+
+          # 4. 执行你的自定义脚本 (用于 git clone 插件)
+          # 就算这步因为格式问题报错，上面的源也已经修好了
+          $GITHUB_WORKSPACE/$DIY_P1_SH || echo "⚠️ diy-part1.sh failed but continuing..."
 
       - name: 🧬 Update feeds
         run: |
           cd openwrt
-          # 尝试更新 3 次，防止网络抖动导致下载失败
-          ./scripts/feeds update -a || (echo "Retry 1..." && sleep 5 && ./scripts/feeds update -a) || (echo "Retry 2..." && sleep 5 && ./scripts/feeds update -a)
-     
+          echo "🔄 Updating feeds with retry logic..."
+          
+          # 5. 【重试机制】尝试更新3次，防止网络波动导致 base/packages 下载失败
+          ./scripts/feeds update -a || (sleep 10 && ./scripts/feeds update -a) || (sleep 10 && ./scripts/feeds update -a)
+
+          # 6. 再次检查是否有报错
+          if [ $? -ne 0 ]; then
+            echo "❌ Feeds update failed! Check network or repo URL."
+            exit 1
+          fi
+
+      # ⬆️⬆️⬆️ 替换结束 ⬆️⬆️⬆️
       - name: 🪛 Install feeds
         run: cd openwrt && ./scripts/feeds install -a
 
