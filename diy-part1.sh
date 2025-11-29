@@ -6,8 +6,7 @@
 
 set -e
 
-# 自动切换到 OpenWrt 源码根目录
-# 如果 workflow clone 到 openwrt/，就直接进入
+# 切换到 workflow clone 的源码目录
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 OPENWRT_DIR="$SCRIPT_DIR/openwrt"
 
@@ -26,7 +25,7 @@ if [ -f "./scripts/feeds" ]; then
     ./scripts/feeds update -a
     ./scripts/feeds install -a
 else
-    echo "⚠️ Warning: scripts/feeds not found, skipping feeds update/install"
+    echo "⚠️ scripts/feeds not found, skipping feeds update/install"
 fi
 
 # 合并自定义 package 配置 fragment
@@ -42,7 +41,7 @@ fi
 echo "⚙️ Running defconfig..."
 yes "" | make defconfig
 
-# 添加自定义 packages / themes（根据需要可删或增加）
+# 添加自定义 packages / themes
 echo "📥 Cloning custom packages / themes..."
 git clone https://github.com/eamonxg/luci-theme-aurora package/luci-theme-aurora || true
 git clone https://github.com/timsaya/luci-app-bandix package/luci-app-bandix || true
