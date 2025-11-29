@@ -37,3 +37,23 @@ tar -zxvf "clash_meta.tar.gz" -C files/etc/openclash/core/
 mv files/etc/openclash/core/clash files/etc/openclash/core/clash_meta
 chmod +x files/etc/openclash/core/clash_meta
 rm -f "clash_meta.tar.gz"
+
+# ---------------------------------------------------------
+# Add Custom Packages (追加自定义包配置)
+# ---------------------------------------------------------
+cat >> .config <<EOF
+CONFIG_PACKAGE_luci-app-ttyd=y
+CONFIG_PACKAGE_luci-app-argon-config=y
+CONFIG_PACKAGE_kmod-rkp-ipid=y
+CONFIG_PACKAGE_iptables-mod-filter=y
+CONFIG_PACKAGE_iptables-mod-ipopt=y
+CONFIG_PACKAGE_iptables-mod-u32=y
+CONFIG_PACKAGE_iptables-nft=y
+CONFIG_PACKAGE_kmod-ipt-ipopt=y
+CONFIG_PACKAGE_ipset=y
+CONFIG_PACKAGE_iptables-mod-conntrack-extra=y
+EOF
+
+# 确保 kmod-rkp-ipid 的依赖也被选中 (通常为了防检测，可能还需要 ua2f)
+# 如果你需要完整的防检测功能，建议也加上 ua2f
+# CONFIG_PACKAGE_ua2f=y
