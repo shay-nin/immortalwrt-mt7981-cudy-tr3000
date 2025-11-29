@@ -84,8 +84,11 @@ jobs:
           $GITHUB_WORKSPACE/$DIY_P1_SH
 
       - name: 🧬 Update feeds
-        run: cd openwrt && ./scripts/feeds update -a
-
+        run: |
+          cd openwrt
+          # 尝试更新 3 次，防止网络抖动导致下载失败
+          ./scripts/feeds update -a || (echo "Retry 1..." && sleep 5 && ./scripts/feeds update -a) || (echo "Retry 2..." && sleep 5 && ./scripts/feeds update -a)
+     
       - name: 🪛 Install feeds
         run: cd openwrt && ./scripts/feeds install -a
 
